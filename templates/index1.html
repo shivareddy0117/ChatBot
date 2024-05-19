@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banking Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+        #chat-container {
+            width: 60%;
+            max-width: 800px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        #chat-box {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .message {
+            margin: 10px 0;
+        }
+        .user-message {
+            text-align: right;
+            color: #007bff;
+        }
+        .bot-message {
+            text-align: left;
+            color: #28a745;
+        }
+        #message-input {
+            width: calc(100% - 80px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #send-button {
+            width: 60px;
+            padding: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #history-button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #ffc107;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="chat-box"></div>
+        <div>
+            <input type="text" id="message-input" placeholder="Type your message here...">
+            <button id="send-button">Send</button>
+        </div>
+        <button id="history-button">Load Chat History</button>
+    </div>
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const historyButton = document.getElementById('history-button');
+
+        let conversationState = "main_menu";
+
+        sendButton.addEventListener('click', () => {
+            const userMessage = messageInput.value;
+            if (userMessage.trim() === '') return;
+
+            // Display the user's message
+            const userMessageElement = document.createElement('div');
+            userMessageElement.className = 'message user-message';
+            userMessageElement.textContent = userMessage;
+            chatBox.appendChild(userMessageElement);
+            messageInput.value = '';
+
+            // Send the message to the server
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: userMessage, state: conversationState }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display the bot's response
+                const botMessageElement = document.createElement('div');
+                botMessageElement.className = 'message bot-message';
+                botMessageElement.textContent = data.response;
+                chatBox.appendChild(botMessageElement);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                // Update conversation state
+                conversationState = data.state;
+            });
+        });
+
+        historyButton.addEventListener('click', () => {
+            fetch('/history')
+                .then(response => response.json())
+                .then(data => {
+                    chatBox.innerHTML = ''; // Clear the chat box
+                    data.forEach(chat => {
+                        const userMessageElement = document.createElement('div');
+                        userMessageElement.className = 'message user-message';
+                        userMessageElement.textContent = chat.user_message;
+                        chatBox.appendChild(userMessageElement);
+
+                        const botMessageElement = document.createElement('div');
+                        botMessageElement.className = 'message bot-message';
+                        botMessageElement.textContent = chat.bot_response;
+                        chatBox.appendChild(botMessageElement);
+                    });
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                });
+        });
+    </script>
+</body>
+</html>

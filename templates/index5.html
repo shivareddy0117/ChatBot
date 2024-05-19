@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+        #chat-container {
+            width: 60%;
+            max-width: 800px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        #chat-box {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin: 10px 0;
+        }
+        .user-message {
+            text-align: right;
+            color: #007bff;
+        }
+        .bot-message {
+            text-align: left;
+            color: #28a745;
+        }
+        #resume-upload {
+            display: none;
+        }
+        #message-input {
+            width: calc(100% - 80px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #send-button, #upload-button {
+            padding: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        #history-button {
+            width: 100%;
+            padding: 10px;
+            background-color: #ffc107;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="chat-box"></div>
+        <div id="resume-upload">
+            <input type="file" id="resume-file">
+            <button id="upload-button">Upload Resume</button>
+        </div>
+        <div>
+            <input type="text" id="message-input" placeholder="Type your message here..." style="display: none;">
+            <button id="send-button" style="display: none;">Send</button>
+        </div>
+        <button id="history-button">Load Chat History</button>
+    </div>
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const resumeUploadDiv = document.getElementById('resume-upload');
+        const resumeFileInput = document.getElementById('resume-file');
+        const uploadButton = document.getElementById('upload-button');
+        const historyButton = document.getElementById('history-button');
+
+        let conversationState = "resume";
+        let applicationData = {};
+
+        function appendMessage(content, className) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message ' + className;
+            messageElement.textContent = content;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        uploadButton.addEventListener('click', () => {
+            const file = resumeFileInput.files[0];
+            if (!file) {
+                appendMessage('Please select a file to upload.', 'bot-message');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('resume', file);
+
+            fetch('/apply', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage(data.message, 'bot-message');
+                if (!data.error) {
+                    resumeUploadDiv.style.display = 'none';
+                    messageInput.style.display = 'block';
+                    sendButton.style.display = 'block';
+                    conversationState = data.next_state;
+                    applicationData = JSON.parse(data.application_data);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                appendMessage('There was an error uploading your resume. Please try again.', 'bot-message');
+            });
+        });
+
+        sendButton.addEventListener('click', () => {
+            const userMessage = messageInput.value;
+            if (userMessage.trim() === '') return;
+
+            // Display the user's message
+            appendMessage(userMessage, 'user-message');
+            messageInput.value = '';
+
+            const payload = {
+                message: userMessage,
+                state: conversationState,
+                application_data: JSON.stringify(applicationData)
+            };
+
+            fetch('/apply', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage(data.message, 'bot-message');
+                conversationState = data.next_state;
+                applicationData = JSON.parse(data.application_data);
+
+                if (conversationState === 'done') {
+                    messageInput.style.display = 'none';
+                    sendButton.style.display = 'none';
+                    resumeUploadDiv.style.display = 'block';
+                    appendMessage('You can start a new application by uploading another resume.', 'bot-message');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                appendMessage('There was an error processing your input. Please try again.', 'bot-message');
+            });
+        });
+
+        historyButton.addEventListener('click', () => {
+            fetch('/history')
+                .then(response => response.json())
+                .then(data => {
+                    chatBox.innerHTML = ''; // Clear the chat box
+                    data.forEach(chat => {
+                        appendMessage(`User: ${chat.first_name} ${chat.last_name}, Address: ${chat.address}, Phone: ${chat.phone}`, 'user-message');
+                        appendMessage(`Resume: <a href="${chat.resume_url}" download>${chat.resume_filename}</a>`, 'bot-message');
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    appendMessage('There was an error loading the chat history.', 'bot-message');
+                });
+        });
+
+        // Initial bot message to prompt resume upload
+        appendMessage('Welcome to the job application chatbot. Please upload your resume.', 'bot-message');
+        resumeUploadDiv.style.display = 'block';
+    </script>
+</body>
+</html>

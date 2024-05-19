@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+        #chat-container {
+            width: 60%;
+            max-width: 800px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        #chat-box {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin: 10px 0;
+        }
+        .user-message {
+            text-align: right;
+            color: #007bff;
+        }
+        .bot-message {
+            text-align: left;
+            color: #28a745;
+        }
+        #application-form {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="chat-box"></div>
+        <div id="application-form">
+            <form id="job-application-form" enctype="multipart/form-data">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required><br><br>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required><br><br>
+                <label for="phone">Phone:</label>
+                <input type="text" id="phone" name="phone" required><br><br>
+                <label for="resume">Resume:</label>
+                <input type="file" id="resume" name="resume" required><br><br>
+                <button type="submit">Submit</button>
+            </form>
+        </div>
+        <div>
+            <input type="text" id="message-input" placeholder="Type your message here...">
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const applicationForm = document.getElementById('application-form');
+        const jobApplicationForm = document.getElementById('job-application-form');
+
+        function appendMessage(content, className) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message ' + className;
+            messageElement.textContent = content;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        sendButton.addEventListener('click', () => {
+            const userMessage = messageInput.value;
+            if (userMessage.trim() === '') return;
+
+            // Display the user's message
+            appendMessage(userMessage, 'user-message');
+            messageInput.value = '';
+
+            // Handle predefined intents
+            if (userMessage.toLowerCase().includes('apply for job')) {
+                applicationForm.style.display = 'block';
+                appendMessage('Please fill out the application form below.', 'bot-message');
+            } else {
+                appendMessage('Sorry, I did not understand that. You can type "apply for job" to start the application process.', 'bot-message');
+            }
+        });
+
+        jobApplicationForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(jobApplicationForm);
+
+            fetch('/apply', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage(data.message, 'bot-message');
+                if (!data.error) {
+                    applicationForm.style.display = 'none';
+                    jobApplicationForm.reset();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                appendMessage('There was an error submitting your application. Please try again.', 'bot-message');
+            });
+        });
+    </script>
+</body>
+</html>
